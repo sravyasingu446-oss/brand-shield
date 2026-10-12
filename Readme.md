@@ -41,3 +41,31 @@ A web platform that helps organizations monitor suspicious digital identities, r
 Project Type
 
 Hackathon Project – Digital Risk Protection
+
+## Implemented MVP
+
+- Compare company name, website domain, and optional official/candidate profile URLs and descriptions.
+- Show a risk score with individual mismatch reasons. This is transparent heuristic scoring, not a trained AI model.
+- Store completed scans and findings in SQLite; retrieve scan history and high-risk alerts for the dashboard.
+- Download individual scan results as PDF and export the full scan history as CSV.
+- Accept user-provided details. LinkedIn is not scraped or assumed to be automatically accessible. An approved API can submit data with `dataSource: "approved-api"`.
+- High-risk results create in-dashboard alerts. Email notifications are not implemented.
+
+## Run locally
+
+Requirements: Node.js 24 or later.
+
+```sh
+npm install
+npm run dev
+```
+
+Open the Vite URL printed in the terminal (usually `http://localhost:5173`). The API runs on port `8787`. Scan data persists in `server/data/brandshield.sqlite`.
+
+Risk score bands: Low 0-29, Medium 30-59, High 60-100. The report contains the scan date, source, reference and candidate details, risk score, status, and findings.
+
+## Implemented technology
+
+- Frontend: React, TypeScript, and Vite
+- API: Node.js and Express
+- Database: SQLite
