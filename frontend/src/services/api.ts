@@ -8,7 +8,7 @@ import {
   SystemSettings 
 } from '../types';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
