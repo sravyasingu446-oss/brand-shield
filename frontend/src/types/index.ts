@@ -151,6 +151,9 @@ export interface DashboardStats {
   risk_trend: { date: string; high: number; medium: number; low: number }[];
   active_agent_count: number;
   agent_statuses: AgentStatus[];
+  last_synced_at?: string;
+  data_source?: string;
+  is_live?: boolean;
 }
 
 export interface SystemSettings {

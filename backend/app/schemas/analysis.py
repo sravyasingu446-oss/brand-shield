@@ -120,3 +120,6 @@ class DashboardStatsResponse(BaseModel):
     risk_trend: List[RiskTrendPoint]
     active_agent_count: int
     agent_statuses: List[Dict[str, Any]]
+    last_synced_at: Optional[str] = None
+    data_source: Optional[str] = "SQLite Persistent Database & Live Feed"
+    is_live: Optional[bool] = True

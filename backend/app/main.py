@@ -45,10 +45,12 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Configuration
+# CORS Configuration (Supporting Localhost, Render, and Netlify Deployments)
+clean_origins = [o.strip() for o in settings.CORS_ORIGINS if o.strip() and o != "*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=clean_origins,
+    allow_origin_regex=r"https://.*\.netlify\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

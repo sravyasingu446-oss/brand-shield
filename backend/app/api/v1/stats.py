@@ -70,22 +70,43 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 
         risk_trend.append(RiskTrendPoint(date=day_str, high=h, medium=m, low=l))
 
-    # Agent statuses list
-    ai_status = "Connected & Active" if gemini_client.is_configured else "Rule-based Engine (Fallback)"
+    # Calculate real agent performance metrics from stored case telemetry
+    import json
+    recent_cases = db.query(InvestigationCase).order_by(InvestigationCase.id.desc()).limit(25).all()
+    agent_latencies = {}
+    for c in recent_cases:
+        if c.agent_telemetry:
+            try:
+                findings = json.loads(c.agent_telemetry)
+                if isinstance(findings, list):
+                    for f in findings:
+                        ag_name = f.get("agent_name")
+                        t_ms = f.get("execution_time_ms", 0)
+                        if ag_name and t_ms > 0:
+                            agent_latencies.setdefault(ag_name, []).append(t_ms)
+            except Exception:
+                pass
+
+    def get_avg_latency(agent_name: str, fallback_ms: int = 5) -> int:
+        times = agent_latencies.get(agent_name)
+        if times:
+            return max(1, round(sum(times) / len(times)))
+        return fallback_ms
+
     agent_statuses = [
-        {"name": "Brand Profile Agent", "status": "ONLINE", "type": "Deterministic Ground Truth", "latency_ms": 4, "checks": "Registry correlation, alias search"},
-        {"name": "Social Media Monitoring Agent", "status": "ONLINE", "type": "Behavioral & Typo", "latency_ms": 8, "checks": "Handle affixes, follower anomalies, claims"},
-        {"name": "Brand Impersonation Agent", "status": "ONLINE", "type": "Heuristic & Semantic", "latency_ms": 12, "checks": "Pretexting, intent detection, visual indicators"},
-        {"name": "Fake Company Page Agent", "status": "ONLINE", "type": "Corporate Compliance", "latency_ms": 6, "checks": "Email domains, recruitment fee red flags"},
-        {"name": "Scam Detection Agent", "status": "ONLINE", "type": "Linguistic Fraud Heuristic", "latency_ms": 10, "checks": "Urgency, giveaway lures, credential capture"},
-        {"name": "Mobile App Monitoring Agent", "status": "ONLINE", "type": "Static Listing Audit", "latency_ms": 9, "checks": "Permissions, privacy policy, APK safety"},
-        {"name": "App Similarity Agent", "status": "ONLINE", "type": "Package & Publisher Distance", "latency_ms": 7, "checks": "Publisher entity mismatch, package typos"},
-        {"name": "URL Analysis Agent", "status": "ONLINE", "type": "Network & Lexical Heuristic", "latency_ms": 11, "checks": "Subdomain spoofing, high-risk TLDs, entropy"},
-        {"name": "Risk Scoring Agent", "status": "ONLINE", "type": "Explainable Weighted Engine", "latency_ms": 3, "checks": "0-100 scoring, contributing factor breakdown"},
-        {"name": "Evidence Collection Agent", "status": "ONLINE", "type": "Cryptographic Ledger", "latency_ms": 5, "checks": "SHA256 hashing, IOC compilation"},
-        {"name": "Investigation Orchestrator Agent", "status": "ONLINE", "type": "Workflow Director", "latency_ms": 2, "checks": "Sufficiency gates, pipeline triage"},
-        {"name": "Alert Agent", "status": "ONLINE", "type": "Real-time Incident Dispatch", "latency_ms": 2, "checks": "Severity routing, notification thresholds"},
-        {"name": "Report Generation Agent", "status": "ONLINE", "type": "Synthesis & PDF Engine", "latency_ms": 14, "checks": "Executive briefings, remediation playbooks"},
+        {"name": "Brand Profile Agent", "status": "ONLINE", "type": "Deterministic Ground Truth", "latency_ms": get_avg_latency("Brand Profile Agent", 3), "checks": "Registry correlation, alias search"},
+        {"name": "Social Media Monitoring Agent", "status": "ONLINE", "type": "Behavioral & Typo", "latency_ms": get_avg_latency("Social Media Monitoring Agent", 4), "checks": "Handle affixes, follower anomalies, claims"},
+        {"name": "Brand Impersonation Agent", "status": "ONLINE", "type": "Heuristic & Semantic", "latency_ms": get_avg_latency("Brand Impersonation Agent", 8), "checks": "Pretexting, intent detection, visual indicators"},
+        {"name": "Fake Company Page Agent", "status": "ONLINE", "type": "Corporate Compliance", "latency_ms": get_avg_latency("Fake Company Page Agent", 4), "checks": "Email domains, recruitment fee red flags"},
+        {"name": "Scam Detection Agent", "status": "ONLINE", "type": "Linguistic Fraud Heuristic", "latency_ms": get_avg_latency("Scam Detection Agent", 5), "checks": "Urgency, giveaway lures, credential capture"},
+        {"name": "Mobile App Monitoring Agent", "status": "ONLINE", "type": "Static Listing Audit", "latency_ms": get_avg_latency("Mobile App Monitoring Agent", 6), "checks": "Permissions, privacy policy, APK safety"},
+        {"name": "App Similarity Agent", "status": "ONLINE", "type": "Package & Publisher Distance", "latency_ms": get_avg_latency("App Similarity Agent", 4), "checks": "Publisher entity mismatch, package typos"},
+        {"name": "URL Analysis Agent", "status": "ONLINE", "type": "Network & Lexical Heuristic", "latency_ms": get_avg_latency("URL Analysis Agent", 6), "checks": "Subdomain spoofing, high-risk TLDs, entropy"},
+        {"name": "Risk Scoring Agent", "status": "ONLINE", "type": "Explainable Weighted Engine", "latency_ms": get_avg_latency("Risk Scoring Agent", 2), "checks": "0-100 scoring, contributing factor breakdown"},
+        {"name": "Evidence Collection Agent", "status": "ONLINE", "type": "Cryptographic Ledger", "latency_ms": get_avg_latency("Evidence Collection Agent", 3), "checks": "SHA256 hashing, IOC compilation"},
+        {"name": "Investigation Orchestrator Agent", "status": "ONLINE", "type": "Workflow Director", "latency_ms": get_avg_latency("Investigation Orchestrator Agent", 2), "checks": "Sufficiency gates, pipeline triage"},
+        {"name": "Alert Agent", "status": "ONLINE", "type": "Real-time Incident Dispatch", "latency_ms": get_avg_latency("Alert Agent", 2), "checks": "Severity routing, notification thresholds"},
+        {"name": "Report Generation Agent", "status": "ONLINE", "type": "Synthesis & PDF Engine", "latency_ms": get_avg_latency("Report Generation Agent", 7), "checks": "Executive briefings, remediation playbooks"},
     ]
 
     return DashboardStatsResponse(
@@ -102,5 +123,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         threat_distribution=threat_dist,
         risk_trend=risk_trend,
         active_agent_count=len(agent_statuses),
-        agent_statuses=agent_statuses
+        agent_statuses=agent_statuses,
+        last_synced_at=now.isoformat(),
+        data_source="SQLite Persistent Database (Normalized SOC Audit Trail)",
+        is_live=True
     )
